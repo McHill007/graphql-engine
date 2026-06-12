@@ -119,6 +119,9 @@ parseBoolExpOperations rhsParser rootFieldInfoMap fim columnRef value = do
         "$jsonb_path_exists" -> guardType [PGJSONB] >> ABackendSpecific . AJsonbPathExists <$> parseWithTy (ColumnScalar PGText)
         "_jsonb_path_match" -> guardType [PGJSONB] >> ABackendSpecific . AJsonbPathMatch <$> parseWithTy (ColumnScalar PGText)
         "$jsonb_path_match" -> guardType [PGJSONB] >> ABackendSpecific . AJsonbPathMatch <$> parseWithTy (ColumnScalar PGText)
+        -- text array operators
+        "_any" -> guardTextArray >> ABackendSpecific <$> parseTextArrayOp ATextArrayAny
+        "_all" -> guardTextArray >> ABackendSpecific <$> parseTextArrayOp ATextArrayAll
         -- geometry types
         "_st_contains" -> parseGeometryOp ASTContains
         "$st_contains" -> parseGeometryOp ASTContains
@@ -315,6 +318,31 @@ parseBoolExpOperations rhsParser rootFieldInfoMap fim columnRef value = do
             <> colTy
             <<> "; this operator works only on columns of type "
             <> expectedColumnType
+
+        guardTextArray =
+          guardTypeWhere (\case PGArray PGText -> True; _ -> False) "text[]"
+
+        parseTextArrayOp constructor = do
+          obj <- parseVal :: m (HashMap Text Value)
+          case HashMap.toList obj of
+            [(opKey, opVal)] -> do
+              op <- case opKey of
+                "_eq" -> pure TCOEq
+                "_like" -> pure TCOLike
+                "_ilike" -> pure TCOILike
+                "_nlike" -> pure TCONLike
+                "_nilike" -> pure TCONILike
+                "_similar" -> pure TCOSimilar
+                "_nsimilar" -> pure TCONSimilar
+                "_regex" -> pure TCORegex
+                "_iregex" -> pure TCOIRegex
+                "_nregex" -> pure TCONRegex
+                "_niregex" -> pure TCONIRegex
+                _ -> throw400 UnexpectedPayload $ "Unknown inner operator for _any/_all: " <> opKey
+              parsed <- rhsParser (CollectableTypeScalar (ColumnScalar PGText)) opVal
+              pure $ constructor op parsed
+            [] -> throw400 UnexpectedPayload "_any/_all requires exactly one comparison operator"
+            _ -> throw400 UnexpectedPayload "_any/_all accepts exactly one comparison operator"
 
         parseVal :: (FromJSON a) => m a
         parseVal = decodeValue val

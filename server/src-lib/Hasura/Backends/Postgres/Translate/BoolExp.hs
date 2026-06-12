@@ -486,6 +486,21 @@ mkFieldCompExp rootReference currTableReference lhsRedactionExp lhsField userInf
         AMatches val -> S.BECompare S.SREGEX lhs val
         AMatchesAny val -> S.BECompare S.SHasKey lhs val
         AMatchesFulltext val -> S.BECompare S.SMatchesFulltext lhs val
+        ATextArrayAny op val ->
+          let elemAlias = S.mkTableAlias "arr_elem"
+              colAlias = S.mkColumnAlias "elem"
+              elemExp = S.mkQIdenExp (S.tableAliasToIdentifier elemAlias) colAlias
+           in S.mkExists
+                (S.FIUnnest [lhs] elemAlias [colAlias])
+                (S.BECompare (textCompOpToSQL op) elemExp val)
+        ATextArrayAll op val ->
+          let elemAlias = S.mkTableAlias "arr_elem"
+              colAlias = S.mkColumnAlias "elem"
+              elemExp = S.mkQIdenExp (S.tableAliasToIdentifier elemAlias) colAlias
+           in S.BENot
+                $ S.mkExists
+                  (S.FIUnnest [lhs] elemAlias [colAlias])
+                  (S.BENot $ S.BECompare (textCompOpToSQL op) elemExp val)
         ASTContains val -> mkGeomOpBe "ST_Contains" val
         ASTCrosses val -> mkGeomOpBe "ST_Crosses" val
         ASTEquals val -> mkGeomOpBe "ST_Equals" val
@@ -513,6 +528,20 @@ mkFieldCompExp rootReference currTableReference lhsRedactionExp lhsField userInf
           sqlAnd . flip map (HashMap.toList casts) $ \(targetType, operations) ->
             let targetAnn = S.mkTypeAnn $ CollectableTypeScalar targetType
              in sqlAnd $ map (mkCompExp (S.SETyAnn lhs targetAnn)) operations
+
+textCompOpToSQL :: TextComparisonOp -> S.CompareOp
+textCompOpToSQL = \case
+  TCOEq -> S.SEQ
+  TCOLike -> S.SLIKE
+  TCOILike -> S.SILIKE
+  TCONLike -> S.SNLIKE
+  TCONILike -> S.SNILIKE
+  TCOSimilar -> S.SSIMILAR
+  TCONSimilar -> S.SNSIMILAR
+  TCORegex -> S.SREGEX
+  TCOIRegex -> S.SIREGEX
+  TCONRegex -> S.SNREGEX
+  TCONIRegex -> S.SNIREGEX
 
 withRedactionExp ::
   (Backend ('Postgres pgKind), MonadIO m, MonadError QErr m) =>
