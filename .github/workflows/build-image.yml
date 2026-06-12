@@ -2,12 +2,6 @@ name: Build and Push Docker Image
 
 on:
   push:
-    branches:
-      - custom/main
-    paths:
-      - 'server/**'
-      - 'cabal.project'
-      - 'cabal.project.freeze'
     tags:
       - 'v*-custom.*'
   workflow_dispatch:
@@ -51,17 +45,12 @@ jobs:
 
       - name: Set version
         run: |
-          if [ -f server/CURRENT_VERSION ]; then
-            UPSTREAM=$(cat server/CURRENT_VERSION)
-          else
-            UPSTREAM="v2.49.1"
-          fi
           TAG=$(git tag --points-at HEAD | grep '\-custom\.' | head -1)
-          if [ -n "$TAG" ]; then
-            echo "CUSTOM_VERSION=${TAG}" >> $GITHUB_ENV
-          else
-            echo "CUSTOM_VERSION=${UPSTREAM}-custom.dev" >> $GITHUB_ENV
+          if [ -z "$TAG" ]; then
+            echo "No custom tag found on HEAD — aborting"
+            exit 1
           fi
+          echo "CUSTOM_VERSION=${TAG}" >> $GITHUB_ENV
 
       - name: Cabal update
         run: cabal update
@@ -90,9 +79,7 @@ jobs:
         run: |
           IMAGE=$(echo "ghcr.io/${{ env.IMAGE_NAME }}" | tr '[:upper:]' '[:lower:]')
           docker build \
-            -t ${IMAGE}:latest \
             -t ${IMAGE}:${{ env.CUSTOM_VERSION }} \
             /tmp/docker-ctx
-          docker push ${IMAGE}:latest
           docker push ${IMAGE}:${{ env.CUSTOM_VERSION }}
 
