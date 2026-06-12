@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveAnyClass #-}
+
 -- | Postgres Types BoolExp
 --
 -- Postgres-specific 'BooleanOperator' extensions.
