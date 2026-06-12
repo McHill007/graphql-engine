@@ -1,0 +1,79 @@
+name: Sync with Upstream
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'  # Jeden Montag 6 Uhr
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+      issues: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Fetch upstream
+        run: |
+          git remote add upstream https://github.com/hasura/graphql-engine.git
+          git fetch upstream
+
+      - name: Check for new upstream commits
+        id: check
+        run: |
+          LOCAL=$(git rev-parse master)
+          UPSTREAM=$(git rev-parse upstream/master)
+          if [ "$LOCAL" = "$UPSTREAM" ]; then
+            echo "Kein Update nötig."
+            echo "updated=false" >> $GITHUB_OUTPUT
+          else
+            echo "Neue Commits gefunden."
+            echo "updated=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Sync master with upstream
+        if: steps.check.outputs.updated == 'true'
+        run: |
+          git checkout master
+          git merge --ff-only upstream/master
+          git push origin master
+
+      - name: Rebase custom/main onto master
+        if: steps.check.outputs.updated == 'true'
+        run: |
+          git checkout custom/main
+          if git rebase master; then
+            git push origin custom/main --force-with-lease
+            echo "Rebase erfolgreich – neues Image wird gebaut."
+          else
+            git rebase --abort
+            gh issue create \
+              --title "Upstream sync: manueller Eingriff nötig" \
+              --body "Der automatische Rebase von \`custom/main\` auf den neuen upstream \`master\` ist fehlgeschlagen (Merge-Konflikt). Bitte manuell lösen:
+
+          \`\`\`bash
+          git fetch upstream
+          git checkout master && git merge upstream/master
+          git push origin master
+          git checkout custom/main
+          git rebase master
+          # Konflikte lösen
+          git rebase --continue
+          git push origin custom/main --force-with-lease
+          \`\`\`"
+            exit 1
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
