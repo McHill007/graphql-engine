@@ -38,14 +38,32 @@ module Hasura.Backends.Postgres.Types.BoolExp
         ASTIntersectsRast,
         ASTOverlaps,
         ASTTouches,
-        ASTWithin
+        ASTWithin,
+        ATextArrayAny,
+        ATextArrayAll
       ),
+    TextComparisonOp (..),
   )
 where
 
 import Data.Aeson.Extended
 import Hasura.Prelude
 import Hasura.RQL.IR.BoolExp
+
+data TextComparisonOp
+  = TCOEq
+  | TCOLike
+  | TCOILike
+  | TCONLike
+  | TCONILike
+  | TCOSimilar
+  | TCONSimilar
+  | TCORegex
+  | TCOIRegex
+  | TCONRegex
+  | TCONIRegex
+  deriving stock (Eq, Generic, Show)
+  deriving anyclass (NFData, Hashable)
 
 data BooleanOperators a
   = AILIKE a --     ILIKE, case insensitive
@@ -84,6 +102,8 @@ data BooleanOperators a
   | AMatches a
   | AMatchesAny a
   | AMatchesFulltext a
+  | ATextArrayAny TextComparisonOp a
+  | ATextArrayAll TextComparisonOp a
   deriving stock (Eq, Generic, Foldable, Functor, Traversable, Show)
 
 instance (NFData a) => NFData (BooleanOperators a)
@@ -128,3 +148,19 @@ instance (ToJSON a) => ToJSONKeyValue (BooleanOperators a) where
     AMatches a -> ("_matches", toJSON a)
     AMatchesAny a -> ("_matches_any", toJSON a)
     AMatchesFulltext a -> ("_matches_fulltext", toJSON a)
+    ATextArrayAny op a -> ("_any", object [textCompOpKey op .= toJSON a])
+    ATextArrayAll op a -> ("_all", object [textCompOpKey op .= toJSON a])
+
+textCompOpKey :: TextComparisonOp -> Key
+textCompOpKey = \case
+  TCOEq -> "_eq"
+  TCOLike -> "_like"
+  TCOILike -> "_ilike"
+  TCONLike -> "_nlike"
+  TCONILike -> "_nilike"
+  TCOSimilar -> "_similar"
+  TCONSimilar -> "_nsimilar"
+  TCORegex -> "_regex"
+  TCOIRegex -> "_iregex"
+  TCONRegex -> "_nregex"
+  TCONIRegex -> "_niregex"

@@ -633,3 +633,9 @@ _filter = [G.name|filter|]
 
 __array :: G.Name
 __array = [G.name|_array|]
+
+__any :: G.Name
+__any = [G.name|_any|]
+
+__all :: G.Name
+__all = [G.name|_all|]
