@@ -320,7 +320,7 @@ parseBoolExpOperations rhsParser rootFieldInfoMap fim columnRef value = do
             <> expectedColumnType
 
         guardTextArray =
-          guardTypeWhere (\case PGArray PGText -> True; _ -> False) "text[]"
+          guardTypeWhere (\case PGArray t -> isStringType t; _ -> False) "text[] or varchar[]"
 
         parseTextArrayOp constructor = do
           obj <- parseVal :: m (HashMap Text Value)

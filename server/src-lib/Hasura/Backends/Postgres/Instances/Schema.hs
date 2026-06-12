@@ -756,8 +756,8 @@ comparisonExps = memoize 'comparisonExps \columnType -> do
                  (Just "is the array contained in the given array value")
                  (ABackendSpecific . AContainedIn . IR.mkParameter <$> typedParser)
              ],
-        -- Ops for text array type: element-level pattern matching
-        guard (isScalarColumnWhere (== PGArray PGText) columnType)
+        -- Ops for text/varchar array type: element-level pattern matching
+        guard (isScalarColumnWhere (\case PGArray t -> isStringType t; _ -> False) columnType)
           *> [ mkBoolOperator
                  tCase
                  collapseIfNull
