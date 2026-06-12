@@ -71,10 +71,11 @@ jobs:
       - name: Build and push Docker image
         run: |
           VERSION=$(cat server/CURRENT_VERSION)
+          IMAGE=$(echo "ghcr.io/${{ env.IMAGE_NAME }}" | tr '[:upper:]' '[:lower:]')
           docker build \
-            -t ghcr.io/${{ env.IMAGE_NAME }}:latest \
-            -t ghcr.io/${{ env.IMAGE_NAME }}:${VERSION}-jsonb-path \
+            -t ${IMAGE}:latest \
+            -t ${IMAGE}:${VERSION}-jsonb-path \
             /tmp/docker-ctx
-          docker push ghcr.io/${{ env.IMAGE_NAME }}:latest
-          docker push ghcr.io/${{ env.IMAGE_NAME }}:${VERSION}-jsonb-path
+          docker push ${IMAGE}:latest
+          docker push ${IMAGE}:${VERSION}-jsonb-path
 
