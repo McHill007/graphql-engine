@@ -51,7 +51,11 @@ jobs:
 
       - name: Set version
         run: |
-          UPSTREAM=$(cat server/CURRENT_VERSION)
+          if [ -f server/CURRENT_VERSION ]; then
+            UPSTREAM=$(cat server/CURRENT_VERSION)
+          else
+            UPSTREAM="v2.49.1"
+          fi
           TAG=$(git tag --points-at HEAD | grep '\-custom\.' | head -1)
           if [ -n "$TAG" ]; then
             echo "CUSTOM_VERSION=${TAG}" >> $GITHUB_ENV
