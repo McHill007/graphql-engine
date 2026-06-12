@@ -51,6 +51,8 @@ jobs:
             exit 1
           fi
           echo "CUSTOM_VERSION=${TAG}" >> $GITHUB_ENV
+          BASE_VERSION=$(echo "${TAG}" | sed 's/-custom\..*//')
+          echo "${BASE_VERSION}" > server/CURRENT_VERSION
 
       - name: Cabal update
         run: cabal update
